@@ -6,7 +6,72 @@ Handles Google Meet integration with AI audio processing
 
 import sys
 import argparse
+import threading
+import time
 from src.meeting.meet_joiner import MeetJoiner
+
+def get_user_input():
+    """Get user input in a non-blocking way"""
+    try:
+        return input().strip().lower()
+    except EOFError:
+        return None
+
+def run_assistant(meeting_code):
+    """Run the assistant for a given meeting code"""
+    # Create meeting URL
+    meet_url = f"https://meet.google.com/{meeting_code}"
+    
+    print(f"Starting AI Video Call Assistant...")
+    print(f"Meeting: {meet_url}")
+    
+    # Initialize meeting joiner
+    joiner = MeetJoiner(meet_url)
+    
+    try:
+        # Join the meeting
+        joiner.join_meeting()
+        
+        # TODO: Initialize audio streaming with LiveKit
+        # TODO: Initialize AI processing with Groq
+        
+        print("AI assistant is now active in the meeting...")
+        print("Commands:")
+        print("  Press 'r' + Enter to restart the application")
+        print("  Press Ctrl+C to leave the meeting")
+        
+        # Keep the session alive with command handling
+        while True:
+            try:
+                user_input = get_user_input()
+                
+                if user_input == 'r':
+                    print("Restarting application...")
+                    joiner.leave_meeting()
+                    return 'restart'  # Signal to restart
+                    
+                elif user_input == 'q' or user_input == 'quit':
+                    print("Exiting...")
+                    joiner.leave_meeting()
+                    return 'quit'  # Signal to quit
+                    
+                else:
+                    if user_input:  # Only show message for non-empty input
+                        print("Unknown command. Press 'r' to restart or Ctrl+C to exit.")
+                        
+            except EOFError:
+                # Handle Ctrl+D
+                joiner.leave_meeting()
+                return 'quit'
+                
+    except KeyboardInterrupt:
+        print("\nLeaving meeting...")
+        joiner.leave_meeting()
+        return 'quit'
+    except Exception as e:
+        print(f"Error: {e}")
+        joiner.leave_meeting()
+        return 'quit'
 
 def main():
     parser = argparse.ArgumentParser(description='AI Video Call Assistant for Google Meet')
@@ -26,34 +91,20 @@ def main():
         print("Invalid meeting code format. Expected format: xxx-xxxx-xxx")
         sys.exit(1)
     
-    # Create meeting URL
-    meet_url = f"https://meet.google.com/{meeting_code}"
-    
-    print(f"Starting AI Video Call Assistant...")
-    print(f"Meeting: {meet_url}")
-    
-    # Initialize meeting joiner
-    joiner = MeetJoiner(meet_url)
-    
-    try:
-        # Join the meeting
-        joiner.join_meeting()
+    # Run the assistant in a loop to handle restarts
+    while True:
+        result = run_assistant(meeting_code)
         
-        # TODO: Initialize audio streaming with LiveKit
-        # TODO: Initialize AI processing with Groq
-        
-        print("AI assistant is now active in the meeting...")
-        print("Press Ctrl+C to leave the meeting")
-        
-        # Keep the session alive
-        joiner.keep_alive()
-        
-    except KeyboardInterrupt:
-        print("\nLeaving meeting...")
-        joiner.leave_meeting()
-    except Exception as e:
-        print(f"Error: {e}")
-        joiner.leave_meeting()
+        if result == 'restart':
+            print("Restarting main application...\n")
+            # Reload the module to pick up any code changes
+            import importlib
+            import src.meeting.meet_joiner
+            importlib.reload(src.meeting.meet_joiner)
+            from src.meeting.meet_joiner import MeetJoiner
+            continue
+        elif result == 'quit':
+            break
 
 if __name__ == "__main__":
     main() 

@@ -3,6 +3,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 
 
@@ -39,16 +40,16 @@ class MeetJoiner:
         self.driver.get('https://accounts.google.com/ServiceLogin?hl=en&passive=true&continue=https://www.google.com/&ec=GAZAAQ')
         self.driver.find_element(By.ID, "identifierId").send_keys(self.email)
         self.driver.find_element(By.ID, "identifierNext").click()
-        time.sleep(3)
+        time.sleep(2)
         
         self.driver.find_element(By.XPATH, '//*[@id="password"]/div[1]/div/div[1]/input').send_keys(self.password)
         self.driver.find_element(By.ID, "passwordNext").click()
-        time.sleep(4)
+        time.sleep(2)
     
     def _navigate_to_meeting(self):
         """Navigate to the meeting URL"""
         self.driver.get(self.meet_url)
-        time.sleep(3)
+        time.sleep(2)
     
     def _setup_meeting_preferences(self):
         """Turn off mic and camera before joining"""
@@ -58,105 +59,79 @@ class MeetJoiner:
     def _set_microphone_to_blackhole(self):
         """Set microphone input to BlackHole"""
         try:
-            # First, click on the microphone button to access settings
-            mic_button = self.driver.find_element(By.CSS_SELECTOR, '[aria-label="Turn on microphone"]')
-            mic_button.click()
-            time.sleep(1)
-            # TODO: Fix this, it's not working
-
-            # Look for the microphone settings dropdown arrow or menu button
-            try:
-                # Try to find the dropdown arrow next to the microphone button
-                mic_dropdown = self.driver.find_element(By.CSS_SELECTOR, '[aria-label="Audio settings"]')
-                
-                mic_dropdown.click()
-                time.sleep(2)
-                
-                # Look for audio input device selection menu
-                try:
-                    # Find the audio input devices list or menu
-                    audio_devices_menu = self.driver.find_element(By.CSS_SELECTOR, '[role="menu"], [role="listbox"]')
-                    
-                    # Look for BlackHole in the available audio input devices
-                    blackhole_options = self.driver.find_elements(By.XPATH, "//div[contains(text(), 'BlackHole') or contains(text(), 'blackhole') or contains(text(), 'BlackHole 2ch') or contains(text(), 'BlackHole 16ch')]")
-                    
-                    if blackhole_options:
-                        blackhole_options[0].click()
-                        time.sleep(1)
-                        print("Successfully set microphone input to BlackHole")
-                    else:
-                        print("BlackHole not found in audio devices list")
-                        # Try alternative method - look for settings gear icon
-                        try:
-                            settings_gear = self.driver.find_element(By.CSS_SELECTOR, '[aria-label*="Settings"], [data-tooltip*="Settings"]')
-                            settings_gear.click()
-                            time.sleep(2)
-                            
-                            # Look for audio settings in the settings menu
-                            audio_settings = self.driver.find_element(By.XPATH, "//div[contains(text(), 'Audio') or contains(text(), 'Microphone')]")
-                            audio_settings.click()
-                            time.sleep(1)
-                            
-                            # Now look for BlackHole in the expanded audio settings
-                            blackhole_in_settings = self.driver.find_element(By.XPATH, "//div[contains(text(), 'BlackHole') or contains(text(), 'blackhole')]")
-                            blackhole_in_settings.click()
-                            time.sleep(1)
-                            print("Set microphone input to BlackHole via settings menu")
-                            
-                        except Exception as settings_e:
-                            print(f"Could not access audio settings: {settings_e}")
-                            # Final fallback - just turn off microphone
-                            mic_button.click()
-                            print("Fallback: Turned off microphone instead")
-                        
-                except Exception as menu_e:
-                    print(f"Could not find audio devices menu: {menu_e}")
-                    # Try clicking on the three dots menu for more options
-                    try:
-                        more_options = self.driver.find_element(By.CSS_SELECTOR, '[aria-label*="More options"], [aria-label*="More"]')
-                        more_options.click()
-                        time.sleep(1)
-                        
-                        # Look for audio or microphone settings in more options
-                        audio_option = self.driver.find_element(By.XPATH, "//div[contains(text(), 'Audio') or contains(text(), 'Microphone') or contains(text(), 'Settings')]")
-                        audio_option.click()
-                        time.sleep(2)
-                        
-                        # Look for BlackHole in the expanded options
-                        blackhole_option = self.driver.find_element(By.XPATH, "//div[contains(text(), 'BlackHole') or contains(text(), 'blackhole')]")
-                        blackhole_option.click()
-                        time.sleep(1)
-                        print("Set microphone input to BlackHole via more options menu")
-                        
-                    except Exception as options_e:
-                        print(f"Could not find BlackHole in more options: {options_e}")
-                        # Final fallback
-                        mic_button.click()
-                        print("Fallback: Turned off microphone")
-                
-            except Exception as dropdown_e:
-                print(f"Could not find microphone dropdown: {dropdown_e}")
-                # Try right-clicking on microphone button for context menu
-                try:
-                    from selenium.webdriver.common.action_chains import ActionChains
-                    actions = ActionChains(self.driver)
-                    actions.context_click(mic_button).perform()
-                    time.sleep(1)
-                    
-                    # Look for audio device options in context menu
-                    blackhole_context = self.driver.find_element(By.XPATH, "//div[contains(text(), 'BlackHole') or contains(text(), 'blackhole')]")
-                    blackhole_context.click()
-                    time.sleep(1)
-                    print("Set microphone input to BlackHole via context menu")
-                    
-                except Exception as context_e:
-                    print(f"Context menu approach failed: {context_e}")
-                    # Final fallback - turn off microphone
-                    mic_button.click()
-                    print("Fallback: Turned off microphone")
+            mic_button = self._click_microphone_button()
+            if not mic_button:
+                return
+            
+            self._click_audio_settings()
+            self._select_blackhole_microphone()
                 
         except Exception as e:
             print(f"Could not configure microphone to BlackHole: {e}")
+
+    def _click_microphone_button(self):
+        """Click the microphone button to access settings"""
+        try:
+            mic_button = self.driver.find_element(By.CSS_SELECTOR, '[aria-label="Turn off microphone"]')
+            mic_button.click()
+            time.sleep(1)
+            return mic_button
+        except Exception as e:
+            print(f"Could not find microphone button: {e}")
+            return None
+
+    def _click_audio_settings(self):
+        """Click the audio settings dropdown"""
+        try:
+            # Try multiple selectors for the audio settings button
+            selectors = [
+                'button[jsname="ndfw3d"][aria-label="Audio settings"]',
+                '[aria-label="Audio settings"]',
+                'button[aria-label*="Audio"]',
+                'button[aria-label*="Microphone"]',
+                'button[jsname="ndfw3d"]'
+            ]
+            
+            for selector in selectors:
+                try:
+                    mic_dropdown = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    mic_dropdown.click()
+                    time.sleep(1)
+                    print(f"Successfully clicked audio settings button with selector: {selector}")
+                    return
+                except Exception as e:
+                    print(f"Failed with selector {selector}: {e}")
+                    continue
+                    
+            print("Could not find audio settings button with any selector")
+        except Exception as e:
+            print(f"Could not find audio settings button: {e}")
+    
+    def _select_blackhole_microphone(self):
+        """Select BlackHole microphone from the dropdown menu"""
+        try:
+            # Wait a bit for the dropdown to fully load
+            print("Waiting for dropdown to load...")
+            time.sleep(2)
+            
+            # Find BlackHole by text content with JavaScript click
+            print("Finding BlackHole by text content...")
+            try:
+                blackhole_option = self.driver.find_element(
+                    By.XPATH, 
+                    "//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']"
+                )
+                print("Found BlackHole option by text content, clicking with JavaScript...")
+                self.driver.execute_script("arguments[0].click();", blackhole_option)
+                print("Successfully selected BlackHole microphone by text content")
+                return
+            except Exception as e:
+                print(f"Failed to select BlackHole microphone: {e}")
+                
+            print("Could not find BlackHole microphone option")
+            
+        except Exception as e:
+            print(f"Error selecting BlackHole microphone: {e}")
     
     def _turn_off_camera(self):
         """Turn off camera"""

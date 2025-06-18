@@ -3,7 +3,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.action_chains import ActionChains
 import time
 
 
@@ -49,90 +48,62 @@ class MeetJoiner:
     def _navigate_to_meeting(self):
         """Navigate to the meeting URL"""
         self.driver.get(self.meet_url)
-        time.sleep(2)
+        time.sleep(1)
     
     def _setup_meeting_preferences(self):
-        """Turn off mic and camera before joining"""
-        self._set_microphone_to_blackhole()
+        """Configure audio settings and turn off camera before joining"""
         self._turn_off_camera()
+        self._set_microphone_to_blackhole()
+        self._set_speaker_to_blackhole()
     
+    def _turn_off_microphone(self):
+        """Turn off microphone"""
+        try:
+            self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Turn off microphone"]').click()
+        except Exception as e:
+            print(f"Could not turn off microphone: {e}")
+
     def _set_microphone_to_blackhole(self):
         """Set microphone input to BlackHole"""
         try:
-            mic_button = self._click_microphone_button()
-            if not mic_button:
-                return
-            
-            self._click_audio_settings()
-            self._select_blackhole_microphone()
+            mic_dropdown = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label*="Microphone"]')
+            mic_dropdown.click()
+            time.sleep(1)
+            blackhole_option = self.driver.find_element(
+                By.XPATH, 
+                "//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']"
+            )
+            self.driver.execute_script("arguments[0].click();", blackhole_option)
+            print("✓ Successfully selected BlackHole input device")
                 
         except Exception as e:
             print(f"Could not configure microphone to BlackHole: {e}")
 
-    def _click_microphone_button(self):
-        """Click the microphone button to access settings"""
+    def _set_speaker_to_blackhole(self):
+        """Set speaker output to BlackHole with verification"""
         try:
-            mic_button = self.driver.find_element(By.CSS_SELECTOR, '[aria-label="Turn off microphone"]')
-            mic_button.click()
-            time.sleep(1)
-            return mic_button
-        except Exception as e:
-            print(f"Could not find microphone button: {e}")
-            return None
-
-    def _click_audio_settings(self):
-        """Click the audio settings dropdown"""
-        try:
-            # Try multiple selectors for the audio settings button
-            selectors = [
-                'button[jsname="ndfw3d"][aria-label="Audio settings"]',
-                '[aria-label="Audio settings"]',
-                'button[aria-label*="Audio"]',
-                'button[aria-label*="Microphone"]',
-                'button[jsname="ndfw3d"]'
-            ]
+            speaker_dropdown = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label*="Speaker"]')
+            speaker_dropdown.click()
             
-            for selector in selectors:
-                try:
-                    mic_dropdown = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    mic_dropdown.click()
-                    time.sleep(1)
-                    print(f"Successfully clicked audio settings button with selector: {selector}")
-                    return
-                except Exception as e:
-                    print(f"Failed with selector {selector}: {e}")
-                    continue
-                    
-            print("Could not find audio settings button with any selector")
-        except Exception as e:
-            print(f"Could not find audio settings button: {e}")
-    
-    def _select_blackhole_microphone(self):
-        """Select BlackHole microphone from the dropdown menu"""
-        try:
-            # Wait a bit for the dropdown to fully load
-            print("Waiting for dropdown to load...")
-            time.sleep(2)
-            
-            # Find BlackHole by text content with JavaScript click
-            print("Finding BlackHole by text content...")
-            try:
-                blackhole_option = self.driver.find_element(
+            speaker_menu = self.driver.find_element(By.XPATH, "//*[@id='yDmH0d']/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[1]/div[2]/div/div/div[2]/div/span/span/div/div[2]/div")
+            blackhole_options = speaker_menu.find_elements(
                     By.XPATH, 
-                    "//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']"
+                    ".//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']"
                 )
-                print("Found BlackHole option by text content, clicking with JavaScript...")
-                self.driver.execute_script("arguments[0].click();", blackhole_option)
-                print("Successfully selected BlackHole microphone by text content")
-                return
-            except Exception as e:
-                print(f"Failed to select BlackHole microphone: {e}")
+            if blackhole_options:
+                blackhole_to_select = blackhole_options[0]
+                self.driver.execute_script("arguments[0].click();", blackhole_to_select)
+                time.sleep(1)
+                speaker_label = speaker_dropdown.get_attribute("aria-label")
                 
-            print("Could not find BlackHole microphone option")
-            
+                if "BlackHole" in speaker_label:
+                    print("✓ Successfully selected BlackHole output device")
+                else:
+                    print("❌ Could not select BlackHole output device")
+
         except Exception as e:
-            print(f"Error selecting BlackHole microphone: {e}")
-    
+            print(f"Could not configure speaker to BlackHole: {e}")
+
     def _turn_off_camera(self):
         """Turn off camera"""
         try:
@@ -142,20 +113,11 @@ class MeetJoiner:
     
     def _join_meeting(self):
         """Click the join meeting button"""
-        time.sleep(2)
         try:
             self.driver.find_element(By.XPATH, '//*[@id="yDmH0d"]/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[2]/div[1]/div[2]/div[2]/div/div').click()
             print("Successfully joined the meeting!")
         except Exception as e:
             print(f"Failed to join: {e}")
-            raise
-
-    def keep_alive(self):
-        """Keep session alive until interrupted"""
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
             raise
 
     def leave_meeting(self):
@@ -169,11 +131,3 @@ class MeetJoiner:
             finally:
                 self.driver.quit()
                 print("Left meeting and closed browser")
-
-    def __del__(self):
-        """Cleanup"""
-        if hasattr(self, 'driver') and self.driver:
-            try:
-                self.driver.quit()
-            except:
-                pass

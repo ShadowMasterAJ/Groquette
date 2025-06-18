@@ -52,17 +52,17 @@ class MeetJoiner:
     
     def _setup_meeting_preferences(self):
         """Configure audio settings and turn off camera before joining"""
-        self._turn_off_camera()
+        self._toggle_camera()
         self._set_microphone_to_blackhole()
         self._set_speaker_to_blackhole()
-    
+
     def _turn_off_microphone(self):
         """Turn off microphone"""
         try:
             self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Turn off microphone"]').click()
         except Exception as e:
             print(f"Could not turn off microphone: {e}")
-
+    
     def _set_microphone_to_blackhole(self):
         """Set microphone input to BlackHole"""
         try:
@@ -104,7 +104,7 @@ class MeetJoiner:
         except Exception as e:
             print(f"Could not configure speaker to BlackHole: {e}")
 
-    def _turn_off_camera(self):
+    def _toggle_camera(self):
         """Turn off camera"""
         try:
             self.driver.find_element(By.XPATH, '//*[@id="yDmH0d"]/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[1]/div[1]/div/div[7]/div[2]/div').click()

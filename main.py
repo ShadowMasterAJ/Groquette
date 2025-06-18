@@ -97,12 +97,12 @@ def main():
         
         if result == 'restart':
             print("Restarting main application...\n")
-            # Reload the module to pick up any code changes
-            import importlib
-            import src.meeting.meet_joiner
-            importlib.reload(src.meeting.meet_joiner)
-            from src.meeting.meet_joiner import MeetJoiner
-            continue
+            # Start a new subprocess with the same meeting code
+            import subprocess
+            import sys
+            subprocess.Popen([sys.executable] + sys.argv[:-1] + [meeting_code])
+            # Exit this process cleanly
+            sys.exit(0)
         elif result == 'quit':
             break
 

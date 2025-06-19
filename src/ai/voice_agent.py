@@ -70,7 +70,7 @@ async def entrypoint(ctx: agents.JobContext) -> None:
         # Generate initial greeting
         print("👋 Generating initial greeting...")
         await session.generate_reply(
-            instructions="Greet the user briefly and offer your assistance."
+            instructions="Briefly greet and wait for activation."
         )
         print("🔄 Agent is now active and listening for audio input...")
 

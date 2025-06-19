@@ -43,3 +43,6 @@ dist/
 
 # Project specific
 src/meeting/__pycache__/
+
+# MyPy cache
+.mypy_cache/

@@ -42,7 +42,6 @@ def run_assistant(meeting_code):
     meet_url = f"https://meet.google.com/{meeting_code}"
     
     print(f"Starting AI Video Call Assistant...")
-    print(f"Meeting: {meet_url}")
     
     # Initialize meeting joiner
     joiner = MeetJoiner(meet_url)
@@ -50,7 +49,7 @@ def run_assistant(meeting_code):
     try:
         # Join the meeting
         joiner.join_meeting()
-        
+
         print("AI assistant is now active in the meeting...")
         print("Commands:")
         print("  Press 'r' + Enter to restart the application")

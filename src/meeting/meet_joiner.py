@@ -4,7 +4,10 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
-
+import subprocess
+import sys
+import os
+from ..audio.audio_manager import AudioManager
 
 class MeetJoiner:
     def __init__(self, meet_url):
@@ -12,6 +15,7 @@ class MeetJoiner:
         self.password = 'groquette123456'
         self.meet_url = meet_url
         self.driver = self._setup_driver()
+        self.voice_agent_process = None
     
     def _setup_driver(self):
         """Initialize Chrome driver"""
@@ -33,6 +37,9 @@ class MeetJoiner:
         self._navigate_to_meeting()
         self._setup_meeting_preferences()
         self._join_meeting()
+        
+        # Start voice agent after successful join
+        self._start_voice_agent()
     
     def _login_to_google(self):
         """Login to Google account"""
@@ -68,7 +75,6 @@ class MeetJoiner:
         try:
             mic_dropdown = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label*="Microphone"]')
             mic_dropdown.click()
-            time.sleep(1)
             blackhole_option = self.driver.find_element(
                 By.XPATH, 
                 "//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']"
@@ -115,19 +121,43 @@ class MeetJoiner:
         """Click the join meeting button"""
         try:
             self.driver.find_element(By.XPATH, '//*[@id="yDmH0d"]/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[2]/div[1]/div[2]/div[2]/div/div').click()
-            print("Successfully joined the meeting!")
+            print("✓ Successfully joined the meeting!")
         except Exception as e:
             print(f"Failed to join: {e}")
             raise
 
+    def _start_voice_agent(self):
+        """Start the voice agent in a separate console process"""
+        try:
+            
+            audio_manager = AudioManager()
+            print("🤖 Starting voice agent console process...")
+            
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            agent_script = os.path.join(current_dir, '..', 'ai', 'voice_agent.py')
+            
+            self.voice_agent_process = subprocess.Popen([sys.executable, agent_script, 'console'])
+            print("✅ Voice agent console process started")
+            audio_manager.cleanup()
+            
+        except Exception as e:
+            print(f"Failed to start voice agent: {e}")
+
     def leave_meeting(self):
         """Leave meeting and cleanup"""
+        # Stop voice agent process
+        if self.voice_agent_process:
+            try:
+                self.voice_agent_process.terminate()
+                self.voice_agent_process.wait(timeout=2)
+            except Exception as e:
+                print(f"⚠️ Error stopping voice agent: {e}")
+        
+        # Leave the meeting
         if self.driver:
             try:
                 self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Leave call"]').click()
-                time.sleep(1)
             except:
                 pass
             finally:
                 self.driver.quit()
-                print("Left meeting and closed browser")

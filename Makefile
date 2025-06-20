@@ -7,7 +7,6 @@ help:
 	@echo "  lint-fix         Auto-fix lint issues with autopep8"
 	@echo "  format           Run black and isort formatters"
 	@echo "  format-all       Auto-fix everything (lint + format)"
-	@echo "  type-check       Run mypy type checker"
 	@echo "  all-checks       Run all linting and formatting tools (check only)"
 	@echo "  pre-commit       Install and run pre-commit hooks"
 	@echo "  clean            Clean up cache files"
@@ -28,9 +27,6 @@ format:
 
 format-all: lint-fix format
 	@echo "All auto-fixes applied!"
-
-type-check:
-	mypy .
 
 all-checks: lint type-check
 	@echo "All checks completed!"

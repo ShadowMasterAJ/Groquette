@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from livekit import agents, rtc
 from livekit.agents import Agent, AgentSession, JobProcess
 from livekit.plugins import groq, silero
+from llm import CustomGroqLLM
 
 load_dotenv()
 
@@ -53,8 +54,8 @@ async def entrypoint(ctx: agents.JobContext) -> None:
             stt=groq.STT(
                 model="whisper-large-v3-turbo", language="en", api_key=groq_api_key
             ),
-            llm=groq.LLM(
-                model="llama-3.3-70b-versatile", temperature=0.7, api_key=groq_api_key
+            llm=CustomGroqLLM(
+                api_key=groq_api_key, model="compound-beta", room=ctx.room
             ),
             tts=groq.TTS(
                 model="playai-tts", voice="Arista-PlayAI", api_key=groq_api_key
@@ -69,9 +70,7 @@ async def entrypoint(ctx: agents.JobContext) -> None:
 
         # Generate initial greeting
         print("👋 Generating initial greeting...")
-        await session.generate_reply(
-            instructions="Briefly greet and wait for activation."
-        )
+        await session.generate_reply()
         print("🔄 Agent is now active and listening for audio input...")
 
         # Keep the agent running

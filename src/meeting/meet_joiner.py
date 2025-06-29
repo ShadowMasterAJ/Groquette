@@ -52,13 +52,50 @@ class MeetJoiner:
         set_speaker_to_blackhole(self.driver)
 
     def _join_meeting(self) -> None:
-        """Click the join meeting button."""
+        """Click the join meeting button and wait if meeting is closed."""
         try:
+            # Click the join meeting button
             self.driver.find_element(
                 By.XPATH,
                 '//*[@id="yDmH0d"]/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[2]/div[1]/div[2]/div[2]/div/div',
             ).click()
-            print("✓ Successfully joined the meeting!")
+
+            time.sleep(2)
+
+            # Check if we successfully joined by looking for leave call button
+            try:
+                self.driver.find_element(
+                    By.CSS_SELECTOR, 'button[aria-label="Leave call"]'
+                )
+                print("✓ Successfully joined the meeting!")
+                return
+            except BaseException:
+                pass
+
+            # If not in meeting, we might need to wait to be let in
+            print("⏳ Waiting to be let into the meeting...")
+
+            # Wait up to 5 minutes to be let in
+            max_wait_time = 300
+            wait_interval = 5
+            elapsed_time = 0
+
+            while elapsed_time < max_wait_time:
+                time.sleep(wait_interval)
+                elapsed_time += wait_interval
+
+                # Check if we've been let in
+                try:
+                    self.driver.find_element(
+                        By.CSS_SELECTOR, 'button[aria-label="Leave call"]'
+                    )
+                    print("✓ Successfully let into the meeting!")
+                    return
+                except BaseException:
+                    print(f"Still waiting... ({elapsed_time}s elapsed)")
+
+            print("⚠️ Timeout waiting to be let into the meeting")
+
         except Exception as e:
             print(f"Failed to join: {e}")
             raise

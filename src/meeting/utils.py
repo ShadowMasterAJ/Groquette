@@ -55,6 +55,17 @@ def turn_off_microphone(driver: webdriver.Chrome) -> None:
         print(f"Could not turn off microphone: {e}")
 
 
+def turn_on_microphone(driver) -> None:
+    """Turn on microphone."""
+    try:
+        driver.find_element(
+            By.CSS_SELECTOR, 'button[aria-label="Turn on microphone"]'
+        ).click()
+        print("🔊 Microphone turned on")
+    except Exception as e:
+        print(f"Could not turn on microphone: {e}")
+
+
 def set_microphone_to_blackhole(driver: webdriver.Chrome) -> None:
     """Set microphone input to BlackHole."""
     try:

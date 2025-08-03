@@ -45,6 +45,18 @@ def login_to_google(driver: webdriver.Chrome, email: str, password: str) -> None
     time.sleep(2)
 
 
+def toggle_camera(driver: webdriver.Chrome) -> None:
+    """Turn off camera."""
+    try:
+        camera_button = driver.find_element(
+            By.CSS_SELECTOR, '[role="button"][aria-label="Turn off camera"]'
+        )
+
+        camera_button.click()
+    except Exception as e:
+        print(f"Could not turn off camera: {e}")
+
+
 def turn_off_microphone(driver: webdriver.Chrome) -> None:
     """Turn off microphone."""
     try:
@@ -70,60 +82,86 @@ def set_microphone_to_blackhole(driver: webdriver.Chrome) -> None:
     """Set microphone input to BlackHole."""
     try:
         mic_dropdown = driver.find_element(
-            By.CSS_SELECTOR, 'button[aria-label*="Microphone"]'
+            By.CSS_SELECTOR, 'button[aria-label*="Microphone"][aria-haspopup="menu"]'
         )
+        print(
+            f"🔍 Found microphone dropdown: {mic_dropdown.get_attribute('aria-label')}"
+        )
+
         mic_dropdown.click()
+        print("🖱️ Clicked microphone dropdown")
+
         blackhole_option = driver.find_element(
             By.XPATH,
             "//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']",
         )
+        print(f"🔍 Found BlackHole option: {blackhole_option.text}")
+
         driver.execute_script("arguments[0].click();", blackhole_option)
-        print("✓ Successfully selected BlackHole input device")
+        print("✅ Successfully selected BlackHole input device")
 
     except Exception as e:
         print(f"Could not configure microphone to BlackHole: {e}")
 
 
 def set_speaker_to_blackhole(driver: webdriver.Chrome) -> None:
-    """Set speaker output to BlackHole with verification."""
+    """Set speaker output to BlackHole with direct index selection."""
     try:
+        print("🔍 Setting speaker to BlackHole...")
+
+        # Open the speaker dropdown
         speaker_dropdown = driver.find_element(
-            By.CSS_SELECTOR, 'button[aria-label*="Speaker"]'
+            By.CSS_SELECTOR, 'button[aria-label*="Speaker"][aria-haspopup="menu"]'
         )
+        current_label = speaker_dropdown.get_attribute("aria-label")
+        print(f"  Current speaker: {current_label}")
+
+        # Check if already set to BlackHole
+        if "BlackHole" in current_label:
+            print("  ✅ Speaker already set to BlackHole")
+            return
+
         speaker_dropdown.click()
+        time.sleep(0.5)
 
-        speaker_menu = driver.find_element(
-            By.XPATH,
-            "//*[@id='yDmH0d']/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[1]/div[2]/div/div/div[2]/div/span/span/div/div[2]/div",
-        )
-        blackhole_options = speaker_menu.find_elements(
-            By.XPATH,
-            ".//span[contains(text(), 'BlackHole 2ch (Virtual)')]//ancestor::li[@role='menuitemradio']",
-        )
-        if blackhole_options:
-            blackhole_to_select = blackhole_options[0]
-            driver.execute_script("arguments[0].click();", blackhole_to_select)
-            time.sleep(1)
-            speaker_label = speaker_dropdown.get_attribute("aria-label")
+        # Find BlackHole option by looking through menu items
+        menu_items = driver.find_elements(By.CSS_SELECTOR, 'li[role="menuitemradio"]')
+        blackhole_found = False
 
-            if speaker_label and "BlackHole" in speaker_label:
-                print("✓ Successfully selected BlackHole output device")
-            else:
-                print("❌ Could not select BlackHole output device")
+        for idx, item in enumerate(menu_items):
+            if "BlackHole" in item.text:
+                print(f"  Found BlackHole at index {idx}: {item.text}")
+                # Force click the item
+                driver.execute_script("arguments[0].click();", item)
+                print("  ✅ Clicked BlackHole option")
+                blackhole_found = True
+                break
+
+        if not blackhole_found:
+            print("  ❌ BlackHole option not found in menu")
+            # Close menu
+            driver.find_element(By.TAG_NAME, "body").click()
+            return
+
+        # Wait for change to take effect
+        time.sleep(0.5)
+
+        # Verify the selection
+        selected_label = driver.find_element(
+            By.CSS_SELECTOR, 'button[aria-label*="Speaker"][aria-haspopup="menu"]'
+        ).get_attribute("aria-label")
+
+        if "BlackHole" in selected_label:
+            print(f"  ✅ Speaker successfully set to: {selected_label}")
+        else:
+            print(f"  ⚠️ Speaker label not updated: {selected_label}")
+            print("  ⚠️ Audio may still route through BlackHole despite the label")
 
     except Exception as e:
-        print(f"Could not configure speaker to BlackHole: {e}")
+        print(f"❌ Could not configure speaker to BlackHole: {e}")
+        import traceback
 
-
-def toggle_camera(driver: webdriver.Chrome) -> None:
-    """Turn off camera."""
-    try:
-        driver.find_element(
-            By.XPATH,
-            '//*[@id="yDmH0d"]/c-wiz/div/div/div[65]/div[3]/div/div[2]/div[4]/div/div/div[1]/div[1]/div/div[7]/div[2]/div',
-        ).click()
-    except Exception as e:
-        print(f"Could not turn off camera: {e}")
+        traceback.print_exc()
 
 
 def start_voice_agent_process() -> Optional[subprocess.Popen[bytes]]:

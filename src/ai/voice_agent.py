@@ -55,7 +55,9 @@ async def entrypoint(ctx: agents.JobContext) -> None:
                 model="whisper-large-v3-turbo", language="en", api_key=groq_api_key
             ),
             llm=CustomGroqLLM(
-                api_key=groq_api_key, model="compound-beta", room=ctx.room
+                api_key=groq_api_key,
+                model="meta-llama/llama-4-maverick-17b-128e-instruct",
+                room=ctx.room,
             ),
             tts=groq.TTS(
                 model="playai-tts", voice="Arista-PlayAI", api_key=groq_api_key

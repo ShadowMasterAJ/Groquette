@@ -10,8 +10,6 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
-from ..audio.audio_manager import AudioManager
-
 
 def setup_chrome_driver() -> webdriver.Chrome:
     """Initialize Chrome driver with meeting-optimized settings."""
@@ -167,16 +165,15 @@ def set_speaker_to_blackhole(driver: webdriver.Chrome) -> None:
 def start_voice_agent_process() -> Optional[subprocess.Popen[bytes]]:
     """Start the voice agent in a separate console process."""
     try:
-        audio_manager = AudioManager()
         print("🤖 Starting voice agent console process...")
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         agent_script = os.path.join(current_dir, "..", "ai", "voice_agent.py")
+        project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
         voice_agent_process = subprocess.Popen(
-            [sys.executable, agent_script, "console"]
+            [sys.executable, agent_script, "console"], cwd=project_root
         )
         print("✅ Voice agent console process started")
-        audio_manager.cleanup()
         return voice_agent_process
 
     except Exception as e:

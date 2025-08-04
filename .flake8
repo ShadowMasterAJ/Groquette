@@ -7,6 +7,8 @@ extend-ignore =
     W503,
     # E501: line too long (black handles this)
     E501
+    # I202: Additional newline in a group of imports (conflicts with isort)
+    I202,
 exclude =
     .git,
     __pycache__,

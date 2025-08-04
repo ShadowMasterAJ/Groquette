@@ -2,6 +2,8 @@
 
 import asyncio
 import os
+import sys
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -10,7 +12,15 @@ from livekit.agents import Agent, AgentSession, JobProcess
 from livekit.plugins import groq, silero
 from llm import CustomGroqLLM
 
+from src.audio.blackhole import set_mic_to_blackhole, set_speaker_to_blackhole
+
 load_dotenv()
+
+# Add parent directory to path for imports when running as standalone script
+# Get the absolute path to the project root (Groquette directory)
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 
 class VoiceAgent(Agent):
@@ -40,6 +50,17 @@ async def entrypoint(ctx: agents.JobContext) -> None:
         print("🤖 Starting voice agent from console...")
         print(f"🔗 Room name: {ctx.room.name}")
         print(f"🆔 Room ID: {ctx.room.sid}")
+
+        # Configure audio devices to use BlackHole
+        print("🎤 Configuring audio devices...")
+        mic_id = set_mic_to_blackhole()
+        speaker_id = set_speaker_to_blackhole()
+
+        if mic_id is None or speaker_id is None:
+            print("⚠️ Warning: BlackHole audio devices not configured properly")
+            print("⚠️ Continuing with system default audio devices...")
+        else:
+            print("✅ BlackHole audio devices configured successfully")
 
         # Get API keys from environment
         groq_api_key = os.getenv("GROQ_API_KEY")

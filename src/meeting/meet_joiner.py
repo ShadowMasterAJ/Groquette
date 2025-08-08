@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import threading
 import time
 from typing import Optional
 
@@ -14,7 +15,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from .ipc_commands import IPCCommands
 from .utils import (
+    focus_chrome_window,
     leave_meeting_cleanup,
     login_to_google,
     set_microphone_to_blackhole,
@@ -22,6 +25,8 @@ from .utils import (
     setup_chrome_driver,
     start_voice_agent_process,
     toggle_camera,
+    turn_off_microphone,
+    turn_on_microphone,
 )
 
 load_dotenv()
@@ -37,6 +42,8 @@ class MeetJoiner:
         self.meet_url = meet_url
         self.driver = setup_chrome_driver()
         self.voice_agent_process: Optional[subprocess.Popen[bytes]] = None
+        self.ipc = IPCCommands()
+        self.is_running = True
 
     def join_meeting(self) -> None:
         """Complete process to join a Google Meet."""
@@ -50,30 +57,31 @@ class MeetJoiner:
         # Start voice agent after successful join
         self.voice_agent_process = start_voice_agent_process()
 
+        # Start IPC command handler in a separate thread
+        self.ipc_thread = threading.Thread(target=self.handle_ipc_commands, daemon=True)
+        self.ipc_thread.start()
+        print("🔄 IPC command handler started")
+
     def _navigate_to_meeting(self) -> None:
         """Navigate to the meeting URL."""
         self.driver.get(self.meet_url)
-        time.sleep(3)
+        time.sleep(1)
 
     def _setup_meeting_preferences(self) -> None:
         """Configure audio settings and turn off camera before joining."""
         toggle_camera(self.driver)
         time.sleep(1)
         set_microphone_to_blackhole(self.driver)
-        time.sleep(1)
         set_speaker_to_blackhole(self.driver)
-        time.sleep(1)
 
     def _join_meeting(self) -> None:
         """Click the join meeting button and wait if meeting is closed."""
         # Wait for page to stabilize
-        time.sleep(2)
+        time.sleep(1)
 
         # Find and click the join button
         join_button, button_text = self._find_join_button()
         self._click_button(join_button, button_text)
-
-        time.sleep(2)
 
         # Check if we successfully joined
         if self._check_if_joined():
@@ -88,6 +96,7 @@ class MeetJoiner:
 
     def _find_join_button(self):
         """Find the join or ask to join button."""
+        focus_chrome_window(self.driver)
         js_code = """
         // First try specific class buttons
         const buttons = document.querySelectorAll('button.UywwFc-LgbsSe');
@@ -204,6 +213,55 @@ class MeetJoiner:
         except Exception:
             pass
 
+    def handle_ipc_commands(self) -> None:
+        """Check and handle IPC commands from voice agent."""
+        while self.is_running:
+            try:
+                # Check for command
+                cmd_data = self.ipc.check_for_command()
+                if cmd_data:
+                    command = cmd_data.get("command")
+                    result = "Unknown command"
+
+                    # Handle different commands
+                    if command == "mute_microphone":
+                        turn_off_microphone(self.driver)
+                        result = "Microphone muted"
+                    elif command == "unmute_microphone":
+                        turn_on_microphone(self.driver)
+                        result = "Microphone unmuted"
+                    elif command == "check_microphone_status":
+                        # Check current microphone status
+                        try:
+                            focus_chrome_window(self.driver)
+                            mic_button = self.driver.find_element(
+                                By.CSS_SELECTOR, 'button[aria-label*="microphone"]'
+                            )
+                            aria_label = mic_button.get_attribute("aria-label")
+                            if "Turn off" in aria_label:
+                                result = "Microphone is currently unmuted"
+                            else:
+                                result = "Microphone is currently muted"
+                        except Exception:
+                            result = "Could not check microphone status"
+                    elif command == "leave_meeting":
+                        self.leave_meeting()
+                        result = "Left the meeting"
+                        self.is_running = False
+
+                    # Send response
+                    self.ipc.send_response(result)
+
+                time.sleep(0.1)  # Check every 100ms
+
+            except KeyboardInterrupt:
+                print("\n🛑 Stopping IPC handler")
+                break
+            except Exception as e:
+                print(f"Error in IPC handler: {e}")
+                time.sleep(1)
+
     def leave_meeting(self) -> None:
         """Leave meeting and cleanup."""
+        self.is_running = False
         leave_meeting_cleanup(self.driver, self.voice_agent_process)

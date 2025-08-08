@@ -27,6 +27,15 @@ def setup_chrome_driver() -> webdriver.Chrome:
     return webdriver.Chrome(options=opt)
 
 
+def focus_chrome_window(driver: webdriver.Chrome) -> None:
+    """Focus the Chrome browser window to bring it to foreground."""
+    try:
+        driver.switch_to.window(driver.current_window_handle)
+        driver.execute_script("window.focus();")
+    except Exception as e:
+        print(f"Could not focus Chrome window: {e}")
+
+
 def login_to_google(driver: webdriver.Chrome, email: str, password: str) -> None:
     """Login to Google account."""
     driver.get(
@@ -46,6 +55,7 @@ def login_to_google(driver: webdriver.Chrome, email: str, password: str) -> None
 def toggle_camera(driver: webdriver.Chrome) -> None:
     """Turn off camera."""
     try:
+        focus_chrome_window(driver)
         camera_button = driver.find_element(
             By.CSS_SELECTOR, '[role="button"][aria-label="Turn off camera"]'
         )
@@ -58,6 +68,7 @@ def toggle_camera(driver: webdriver.Chrome) -> None:
 def turn_off_microphone(driver: webdriver.Chrome) -> None:
     """Turn off microphone."""
     try:
+        focus_chrome_window(driver)
         driver.find_element(
             By.CSS_SELECTOR, 'button[aria-label="Turn off microphone"]'
         ).click()
@@ -68,6 +79,7 @@ def turn_off_microphone(driver: webdriver.Chrome) -> None:
 def turn_on_microphone(driver) -> None:
     """Turn on microphone."""
     try:
+        focus_chrome_window(driver)
         driver.find_element(
             By.CSS_SELECTOR, 'button[aria-label="Turn on microphone"]'
         ).click()
@@ -79,6 +91,7 @@ def turn_on_microphone(driver) -> None:
 def set_microphone_to_blackhole(driver: webdriver.Chrome) -> None:
     """Set microphone input to BlackHole."""
     try:
+        focus_chrome_window(driver)
         mic_dropdown = driver.find_element(
             By.CSS_SELECTOR, 'button[aria-label*="Microphone"][aria-haspopup="menu"]'
         )
@@ -105,6 +118,7 @@ def set_microphone_to_blackhole(driver: webdriver.Chrome) -> None:
 def set_speaker_to_blackhole(driver: webdriver.Chrome) -> None:
     """Set speaker output to BlackHole with direct index selection."""
     try:
+        focus_chrome_window(driver)
         print("🔍 Setting speaker to BlackHole...")
 
         # Open the speaker dropdown

@@ -4,23 +4,30 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, JobProcess
+from livekit.agents import Agent, AgentSession, function_tool, JobProcess, RunContext
+
+# from livekit.plugins.turn_detector.english import EnglishModel
 from livekit.plugins import groq, silero
-from llm import CustomGroqLLM
 
-from src.audio.blackhole import set_mic_to_blackhole, set_speaker_to_blackhole
-
-load_dotenv()
+# from llm import CustomGroqLLM
 
 # Add parent directory to path for imports when running as standalone script
 # Get the absolute path to the project root (Groquette directory)
 current_file = Path(__file__).resolve()
 project_root = current_file.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from src.audio.blackhole import set_mic_to_blackhole, set_speaker_to_blackhole
+from src.meeting.ipc_commands import IPCCommands
+
+load_dotenv()
+
+# Initialize IPC for communication with Selenium process
+ipc = IPCCommands()
 
 
 class VoiceAgent(Agent):
@@ -31,7 +38,77 @@ class VoiceAgent(Agent):
         instructions = self._load_system_prompt()
         if instructions is None:
             instructions = "You are a helpful AI assistant in a video call."
-        super().__init__(instructions=instructions)
+
+        self.is_muted = False  # Track mute state
+
+        super().__init__(
+            instructions=instructions, vad=silero.VAD.load(), turn_detection="vad"
+        )
+
+    @function_tool()
+    async def mute_microphone(self, reason: str, context: RunContext) -> dict[str, Any]:
+        """
+        Mute the agent's microphone in Google Meet.
+
+        Args:
+            reason: The reason for muting the microphone.
+
+        Returns:
+            A dictionary containing the result of the command.
+        """
+        reason = "Muted by voice agent"
+        result = ipc.send_command("mute_microphone")
+        self.is_muted = True
+        return {"result": result}
+
+    @function_tool()
+    async def unmute_microphone(
+        self, reason: str, context: RunContext
+    ) -> dict[str, Any]:
+        """
+        Unmute the agent's microphone in Google Meet.
+
+        Args:
+            reason: The reason for unmuting the microphone.
+
+        Returns:
+            A dictionary containing the result of the command.
+        """
+        reason = "Unmuted by voice agent"
+        result = ipc.send_command("unmute_microphone")
+        self.is_muted = False
+        return {"result": result}
+
+    @function_tool()
+    async def check_microphone_status(
+        self, reason: str, context: RunContext
+    ) -> dict[str, Any]:
+        """
+        Check current microphone mute status in Google Meet.
+
+        Args:
+            reason: The reason for checking the microphone status.
+
+        Returns:
+            A dictionary containing the result of the command.
+        """
+        reason = "Checked microphone status by voice agent"
+        return {"result": self.is_muted}
+
+    @function_tool()
+    async def leave_meeting(self, reason: str, context: RunContext) -> dict[str, Any]:
+        """
+        Leave the current Google Meet meeting.
+
+        Args:
+            reason: The reason for leaving the meeting.
+
+        Returns:
+            A dictionary containing the result of the command.
+        """
+        reason = "Left meeting by voice agent"
+        result = ipc.send_command("leave_meeting")
+        return {"result": result}
 
     def _load_system_prompt(self) -> Optional[str]:
         """Load system prompt from file."""
@@ -75,15 +152,14 @@ async def entrypoint(ctx: agents.JobContext) -> None:
             stt=groq.STT(
                 model="whisper-large-v3-turbo", language="en", api_key=groq_api_key
             ),
-            llm=CustomGroqLLM(
-                api_key=groq_api_key,
+            llm=groq.LLM(
                 model="meta-llama/llama-4-maverick-17b-128e-instruct",
-                room=ctx.room,
+                # "llama-3.3-70b-versatile",
+                api_key=groq_api_key,
             ),
             tts=groq.TTS(
                 model="playai-tts", voice="Arista-PlayAI", api_key=groq_api_key
             ),
-            vad=silero.VAD.load(),
         )
 
         # Create and start the agent

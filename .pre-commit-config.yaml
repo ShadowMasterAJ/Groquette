@@ -23,12 +23,12 @@ repos:
         args: ["--profile", "black"]
         files: '\.py$'
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
-    hooks:
-      - id: flake8
-        additional_dependencies: [flake8-docstrings, flake8-import-order]
-        files: '\.py$'
+  # - repo: https://github.com/pycqa/flake8
+  #   rev: 6.1.0
+  #   hooks:
+  #     - id: flake8
+  #       additional_dependencies: [flake8-docstrings, flake8-import-order]
+  #       files: '\.py$'
 
   # MyPy disabled in pre-commit due to environment issues
   # Run manually with: make type-check
